@@ -82,7 +82,6 @@ pub mod FastX {
             {
                 seq_start = seq_end;
                 seq_end += self.seq.len() - line_start;
-                println!("{} {}  {} {}", seq_start, seq_end, line_start, self.seq.len());
                 seq[seq_start..seq_end].copy_from_slice(&self.seq[line_start..self.seq.len()]);
                 seq.resize(seq_end, 0);
             }
