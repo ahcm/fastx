@@ -11,4 +11,4 @@ repository = "https://github.com/ahcm/fastx"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-memchr = "*"
+memchr = "2.4.0"
