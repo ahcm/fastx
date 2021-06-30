@@ -1,29 +1,31 @@
-use fastx::FastX::open;
-use fastx::FastX::FastXRead;
-use fastx::FastX::FastXRecord;
+use fastx::FastX;
 use std::env::args;
-use std::fs::File;
 use std::io;
-use std::io::BufRead;
-use std::io::BufReader;
-use std::io::Read;
+use std::path::Path;
 use core::iter::Iterator;
 
 fn main() -> io::Result<()>
 {
-    for filename in args().skip(1) {
+    for filename in args().skip(1)
+    {
         println!("{}", filename);
-        let file = File::open(filename).unwrap();
-        let mut reader = BufReader::new(file);
-        //let mut record = FastXRecord::default();
-        let mut record = open(&mut reader)?;
-        while let Ok(_some @ 1..=usize::MAX) = record.read(&mut reader)
+        let mut fastx_reader = FastX::reader_from_path(Path::new(&filename))?;
+        let mut fastx_record = FastX::from_reader(&mut fastx_reader)?;
+
+        /*
+        // just for fun read the first line and seek back
+        use std::io::BufRead;
+        let mut line = String::new();
+        let offset = fastx_reader.read_line(&mut line)?;
+        println!("{}", line);
+        fastx_reader.seek_relative(- (offset as i64))?;
+        */
+
+        // back to serious processing
+        while let Ok(_some @ 1..=usize::MAX) = fastx_record.read(&mut fastx_reader)
         {
-            let (id, title) = record.name().split_once(" ").unwrap_or((record.name(), ""));
-            println!("{}\t{}\t{}", id,
-                     record.seq().len(),
-                     title)
-            //println!("{}\t{}", record.name(), record.seq().len())
+            let (id, desc) = fastx_record.name().split_once(" ").unwrap_or((fastx_record.name(), ""));
+            println!("{}\t{}\t{}", id, fastx_record.seq_len(), desc)
         }
     }
     Ok(())
