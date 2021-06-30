@@ -2,6 +2,9 @@
 name = "fastx"
 version = "0.1.0"
 edition = "2018"
+authors = ["Andreas Hauser <Andreas.Hauser@LMU.de>"]
+description = "FastX reads Fasta and FastQ files with little overhead."
+license = "CC-BY-SA-4.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
