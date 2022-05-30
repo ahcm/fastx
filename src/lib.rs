@@ -38,6 +38,7 @@ pub mod FastX
     {
         fn read(&mut self, reader: &mut dyn BufRead) -> io::Result<usize>;
         fn name(&self) -> &String;
+        fn id(&self) -> &str;
         fn seq_raw(&self) -> &Vec<u8>;
         fn seq(&self) -> Vec<u8>;
         fn seq_len(&self) -> usize;
@@ -54,6 +55,15 @@ pub mod FastX
         fn name(&self) -> &String
         {
             &self.name
+        }
+
+        fn id(&self) -> &str
+        {
+            match memchr::memchr(b' ', self.name.as_bytes())
+            {
+               None => &self.name,
+               Some(i) => &self.name[..i]
+            }
         }
 
         fn seq_raw(&self) -> &Vec<u8>
@@ -139,6 +149,15 @@ pub mod FastX
         fn name(&self) -> &String
         {
             &self.name
+        }
+
+        fn id(&self) -> &str
+        {
+            match memchr::memchr(b' ', self.name.as_bytes())
+            {
+               None => &self.name,
+               Some(i) => &self.name[..i]
+            }
         }
 
         fn seq_raw(&self) -> &Vec<u8>
