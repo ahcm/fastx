@@ -73,8 +73,7 @@ pub mod FastX
 
         fn seq(&self) -> Vec<u8>
         {
-            let mut seq = Vec::with_capacity(self.raw_seq.len());
-            seq.resize(self.raw_seq.len(), 0);
+            let mut seq = vec![0; self.raw_seq.len()];
             let mut line_start = 0;
             let mut seq_end = 0;
             let mut seq_start = 0;
@@ -132,7 +131,7 @@ pub mod FastX
                 Err(e) => return Err(e),
                 Ok(0) => return Ok(0),
                 Ok(some) => size = some,
-            }
+            };
             rstrip_newline_string(&mut self.name);
 
             match reader.read_until(b'>', &mut self.raw_seq)
@@ -261,7 +260,7 @@ pub mod FastX
     // the Readable
     pub fn peek(reader: &mut dyn Read) -> io::Result<(FastXFormat, [u8; 1])>
     {
-        let mut buf = [0 as u8];
+        let mut buf = [0_u8];
         reader.read_exact(&mut buf)?;
         let format = match buf[0] as char
         {
@@ -344,7 +343,7 @@ mod tests
             let seq = record.seq_raw();
             println!("r{}r", String::from_utf8_lossy(seq));
             let mut offset = 0;
-            memchr::memchr_iter(b'\n', &seq)
+            memchr::memchr_iter(b'\n', seq)
                 .map(|line_end|
                      {
                          let seq = &seq[offset..line_end];
