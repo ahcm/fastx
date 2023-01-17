@@ -14,7 +14,7 @@ fn main() -> io::Result<()>
 
         while let Ok(_some @ 1..=usize::MAX) = fastx_record.read(&mut fastx_reader)
         {
-            println!(">{} {}\n{}", fastx_record.id(), fastx_record.name(), String::from_utf8_lossy(&fastx_record.seq()));
+            println!(">{} {}\n{}", fastx_record.id(), fastx_record.desc(), String::from_utf8_lossy(&fastx_record.seq()));
         }
     }
     Ok(())
