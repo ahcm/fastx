@@ -48,6 +48,7 @@ pub mod FastX
 
     pub trait FastQRead: FastXRead
     {
+        fn comment(&self) -> &str;
         fn qual(&self) -> &Vec<u8>;
     }
 
@@ -224,9 +225,12 @@ pub mod FastX
             {
                 Err(e) => return Err(e),
                 Ok(0) => return Ok(0),
-                Ok(some) => size += some,
+                Ok(some) =>
+                {
+                    rstrip_newline_string(&mut self.comment); //self.name.truncate(size - 1); // truncate newline XXX non UNIX
+                    size += some
+                }
             }
-            rstrip_newline_string(&mut self.comment); //self.name.truncate(size - 1); // truncate newline XXX non UNIX
 
             self.qual.clear();
             match reader.read_until(b'\n', &mut self.qual)
@@ -243,6 +247,11 @@ pub mod FastX
 
     impl FastQRead for FastQRecord
     {
+        fn comment(&self) -> &str
+        {
+            &self.comment[1..]
+        }
+
         fn qual(&self) -> &Vec<u8>
         {
             &self.qual
