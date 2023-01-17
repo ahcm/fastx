@@ -62,8 +62,8 @@ pub mod FastX
         {
             match memchr::memchr(b' ', self.name.as_bytes())
             {
-               None => &self.name,
-               Some(i) => &self.name[..i]
+               None => &self.name[1..],
+               Some(i) => &self.name[1..i]
             }
         }
 
@@ -164,8 +164,8 @@ pub mod FastX
         {
             match memchr::memchr(b' ', self.name.as_bytes())
             {
-               None => &self.name,
-               Some(i) => &self.name[..i]
+               None => &self.name[1..],
+               Some(i) => &self.name[1..i]
             }
         }
 
@@ -234,8 +234,7 @@ pub mod FastX
                 Err(e) => Err(e),
                 Ok(0) => Ok(0),
                 Ok(some) => {
-                    rstrip_newline_vec(&mut self.seq);
-                    //println!("{}", String::from_utf8_lossy(&self.seq));
+                    rstrip_newline_vec(&mut self.qual);
                     Ok(size + some)
                 }
             }
