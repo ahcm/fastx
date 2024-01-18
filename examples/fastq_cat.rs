@@ -1,9 +1,9 @@
-use fastx::FastX::{self, FastQRead};
+use core::iter::Iterator;
 use fastx::FastX::FastXRead;
+use fastx::FastX::{self, FastQRead};
 use std::env::args;
 use std::io;
 use std::path::Path;
-use core::iter::Iterator;
 
 fn main() -> io::Result<()>
 {
@@ -15,12 +15,14 @@ fn main() -> io::Result<()>
 
         while let Ok(_some @ 1..=usize::MAX) = fastq_record.read(&mut fastx_reader)
         {
-            println!("@{} {}\n{}\n+{}\n{}",
-                     fastq_record.id(),
-                     fastq_record.desc(),
-                     String::from_utf8_lossy(&fastq_record.seq()),
-                     fastq_record.comment(),
-                     String::from_utf8_lossy(&fastq_record.qual()));
+            println!(
+                "@{} {}\n{}\n+{}\n{}",
+                fastq_record.id(),
+                fastq_record.desc(),
+                String::from_utf8_lossy(&fastq_record.seq()),
+                fastq_record.comment(),
+                String::from_utf8_lossy(&fastq_record.qual())
+            );
         }
     }
     Ok(())

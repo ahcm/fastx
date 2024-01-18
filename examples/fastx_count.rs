@@ -1,8 +1,8 @@
+use core::iter::Iterator;
 use fastx::FastX;
 use std::env::args;
 use std::io;
 use std::path::Path;
-use core::iter::Iterator;
 
 fn main() -> io::Result<()>
 {

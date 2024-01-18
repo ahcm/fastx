@@ -63,8 +63,8 @@ pub mod FastX
         {
             match memchr::memchr(b' ', self.name.as_bytes())
             {
-               None => &self.name[1..],
-               Some(i) => &self.name[1..i]
+                None => &self.name[1..],
+                Some(i) => &self.name[1..i],
             }
         }
 
@@ -72,8 +72,8 @@ pub mod FastX
         {
             match memchr::memchr(b' ', self.name.as_bytes())
             {
-               None => "",
-               Some(i) => &self.name[i+1..]
+                None => "",
+                Some(i) => &self.name[i + 1..],
             }
         }
 
@@ -88,19 +88,18 @@ pub mod FastX
             let mut line_start = 0;
             let mut seq_end = 0;
             let mut seq_start = 0;
-            memchr::memchr_iter(b'\n', &self.raw_seq)
-                .for_each(|line_end|
-                     {
-                         seq_start = seq_end;
-                         seq_end += line_end - line_start;
-                         seq[seq_start..seq_end].copy_from_slice(&self.raw_seq[line_start..line_end]);
-                         line_start = line_end + 1; // skip '\n'
-                     });
+            memchr::memchr_iter(b'\n', &self.raw_seq).for_each(|line_end| {
+                seq_start = seq_end;
+                seq_end += line_end - line_start;
+                seq[seq_start..seq_end].copy_from_slice(&self.raw_seq[line_start..line_end]);
+                line_start = line_end + 1; // skip '\n'
+            });
             if line_start < self.raw_seq.len()
             {
                 seq_start = seq_end;
                 seq_end += self.raw_seq.len() - line_start;
-                seq[seq_start..seq_end].copy_from_slice(&self.raw_seq[line_start..self.raw_seq.len()]);
+                seq[seq_start..seq_end]
+                    .copy_from_slice(&self.raw_seq[line_start..self.raw_seq.len()]);
                 seq.resize(seq_end, 0);
             }
             seq
@@ -111,25 +110,23 @@ pub mod FastX
             //self.seq.split( |c| *c == b'\n').collect()
             let mut line_start = 0;
             memchr::memchr_iter(b'\n', &self.raw_seq)
-                .map(|line_end|
-                     {
-                         let line = &self.raw_seq[line_start..line_end];
-                         line_start = line_end + 1;
-                         line
-                     }).collect()
+                .map(|line_end| {
+                    let line = &self.raw_seq[line_start..line_end];
+                    line_start = line_end + 1;
+                    line
+                })
+                .collect()
         }
 
         fn seq_len(&self) -> usize
         {
             let mut line_start = 0;
-            memchr::memchr_iter(b'\n', &self.raw_seq)
-                .fold(0, |mut len, line_end|
-                     {
-                         len += line_end - line_start;
-                         line_start = line_end + 1;
-                         len
-                     })
-                + self.raw_seq.len() - line_start
+            memchr::memchr_iter(b'\n', &self.raw_seq).fold(0, |mut len, line_end| {
+                len += line_end - line_start;
+                line_start = line_end + 1;
+                len
+            }) + self.raw_seq.len()
+                - line_start
         }
 
         fn read(&mut self, reader: &mut dyn BufRead) -> io::Result<usize>
@@ -149,7 +146,11 @@ pub mod FastX
             {
                 Err(e) => Err(e),
                 Ok(0) => Ok(0),
-                Ok(some) => { rstrip_seq(&mut self.raw_seq); Ok(size + some) }
+                Ok(some) =>
+                {
+                    rstrip_seq(&mut self.raw_seq);
+                    Ok(size + some)
+                }
             }
         }
     }
@@ -165,8 +166,8 @@ pub mod FastX
         {
             match memchr::memchr(b' ', self.name.as_bytes())
             {
-               None => &self.name[1..],
-               Some(i) => &self.name[1..i]
+                None => &self.name[1..],
+                Some(i) => &self.name[1..i],
             }
         }
 
@@ -174,8 +175,8 @@ pub mod FastX
         {
             match memchr::memchr(b' ', self.name.as_bytes())
             {
-               None => "",
-               Some(i) => &self.name[i+1..]
+                None => "",
+                Some(i) => &self.name[i + 1..],
             }
         }
 
@@ -192,12 +193,14 @@ pub mod FastX
 
         fn seq_len(&self) -> usize
         {
-            self.seq.split( |c| *c == b'\n').fold(0, |len, seq| len + seq.len())
+            self.seq
+                .split(|c| *c == b'\n')
+                .fold(0, |len, seq| len + seq.len())
         }
 
         fn lines(&self) -> Vec<&[u8]>
         {
-            self.seq.split( |c| *c == b'\n').collect()
+            self.seq.split(|c| *c == b'\n').collect()
         }
 
         fn read(&mut self, reader: &mut dyn BufRead) -> io::Result<usize>
@@ -217,7 +220,11 @@ pub mod FastX
             {
                 Err(e) => return Err(e),
                 Ok(0) => return Ok(0),
-                Ok(some) => { rstrip_newline_vec(&mut self.seq); size += some; }
+                Ok(some) =>
+                {
+                    rstrip_newline_vec(&mut self.seq);
+                    size += some;
+                }
             }
 
             self.comment.clear();
@@ -237,7 +244,8 @@ pub mod FastX
             {
                 Err(e) => Err(e),
                 Ok(0) => Ok(0),
-                Ok(some) => {
+                Ok(some) =>
+                {
                     rstrip_newline_vec(&mut self.qual);
                     Ok(size + some)
                 }
@@ -305,10 +313,10 @@ pub mod FastX
         Ok((format, buf))
     }
 
-    use std::path::Path;
     use std::fs::File;
     use std::io::BufReader;
-    pub fn reader_from_path(path : &Path) -> io::Result<BufReader<File>>
+    use std::path::Path;
+    pub fn reader_from_path(path: &Path) -> io::Result<BufReader<File>>
     {
         let file = File::open(path)?;
         Ok(BufReader::new(file))
@@ -317,10 +325,14 @@ pub mod FastX
     pub fn from_reader(reader: &mut dyn Read) -> io::Result<Box<dyn FastXRead>>
     {
         let (format, first) = peek(reader)?;
-        match format {
+        match format
+        {
             FastXFormat::FASTA => Ok(Box::new(FastARecord::default())),
             FastXFormat::FASTQ => Ok(Box::new(FastQRecord::default())),
-            FastXFormat::UNKNOWN => Err(io::Error::new(io::ErrorKind::InvalidData, format!("{:?}", first))),
+            FastXFormat::UNKNOWN =>
+            {
+                Err(io::Error::new(io::ErrorKind::InvalidData, format!("{:?}", first)))
+            }
         }
     }
 }
@@ -328,10 +340,10 @@ pub mod FastX
 #[cfg(test)]
 mod tests
 {
+    use super::FastX::peek;
+    use super::FastX::FastARecord;
     use super::FastX::FastQRecord;
     use super::FastX::FastXRead;
-    use super::FastX::FastARecord;
-    use super::FastX::peek;
     use std::io::BufReader;
     use std::io::Cursor;
 
@@ -360,7 +372,7 @@ mod tests
         let fasta = b">a\nAGTC\n>b\nTAGC\nTTTT\n>c\nGCTA\n";
         let mut reader = BufReader::new(Cursor::new(fasta));
         let mut record = FastARecord::default();
-        let mut output : Vec<u8> = Vec::new();
+        let mut output: Vec<u8> = Vec::new();
         peek(&mut reader).expect("peek");
         while let Ok(_some @ 1..=usize::MAX) = record.read(&mut reader)
         {
@@ -371,28 +383,26 @@ mod tests
             println!("r{}r", String::from_utf8_lossy(seq));
             let mut offset = 0;
             memchr::memchr_iter(b'\n', seq)
-                .map(|line_end|
-                     {
-                         let seq = &seq[offset..line_end];
-                         println!("#{}#", String::from_utf8_lossy(seq));
-                         offset = line_end + 1;
-                         seq
-                     })
-                .for_each(|line|
-                          {
-                              output.append(&mut line.to_vec());
-                              output.push(b'\n');
-                          }
-                         );
-                output.append(&mut seq[offset..].to_vec());
-                output.push(b'\n');
+                .map(|line_end| {
+                    let seq = &seq[offset..line_end];
+                    println!("#{}#", String::from_utf8_lossy(seq));
+                    offset = line_end + 1;
+                    seq
+                })
+                .for_each(|line| {
+                    output.append(&mut line.to_vec());
+                    output.push(b'\n');
+                });
+            output.append(&mut seq[offset..].to_vec());
+            output.push(b'\n');
         }
         println!("{}\n\n{}", String::from_utf8_lossy(fasta), String::from_utf8_lossy(&output));
         assert_eq!(fasta.to_vec(), output);
     }
 
     #[test]
-    fn fastq() {
+    fn fastq()
+    {
         let mut x = BufReader::new(Cursor::new(
             "@a\nAGTC\n+\n'&'*+\n@b\nTAGCTTTT\n+\n'&'*+'&'*+\n@c\nGCTA\n+\n'&'*+",
         ));
