@@ -9,12 +9,12 @@ pub mod FastX
 {
     use std::io;
     use std::io::BufRead;
-    use std::io::Read;
 
     pub enum FastXFormat
     {
         FASTQ,
         FASTA,
+        EOF,
         UNKNOWN,
     }
 
@@ -63,8 +63,8 @@ pub mod FastX
         {
             match memchr::memchr(b' ', self.name.as_bytes())
             {
-                None => &self.name[1..],
-                Some(i) => &self.name[1..i],
+                None => &self.name,
+                Some(i) => &self.name[..i],
             }
         }
 
@@ -133,16 +133,36 @@ pub mod FastX
         {
             self.name.clear();
             self.raw_seq.clear();
-            let size;
+
+            let mut size = 0;
+
+            let mut record_sep = [0_u8];
+            match reader.read(&mut record_sep)
+            {
+                Err(e) => return Err(e),
+                Ok(0) => return Ok(0),
+                Ok(some) =>
+                {
+                    size += some;
+                    if some != 1 && record_sep[0] != b'>'
+                    {
+                        return Err(io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            "record_sep does not match '>'",
+                        ));
+                    }
+                }
+            };
+
             match reader.read_line(&mut self.name)
             {
                 Err(e) => return Err(e),
                 Ok(0) => return Ok(0),
-                Ok(some) => size = some,
+                Ok(some) => size += some,
             };
             rstrip_newline_string(&mut self.name);
 
-            match reader.read_until(b'>', &mut self.raw_seq)
+            match read_until_before(reader, b'>', &mut self.raw_seq)
             {
                 Err(e) => Err(e),
                 Ok(0) => Ok(0),
@@ -293,14 +313,14 @@ pub mod FastX
 
     // Determines the format from reading the first byte(s) of
     // the Readable
-    pub fn peek(reader: &mut dyn Read) -> io::Result<(FastXFormat, [u8; 1])>
+    pub fn peek(reader: &mut dyn BufRead) -> io::Result<(FastXFormat, u8)>
     {
-        let mut buf = [0_u8];
-        reader.read_exact(&mut buf)?;
+        let buf = reader.fill_buf().expect("peek failed");
         let format = match buf[0] as char
         {
             '>' => FastXFormat::FASTA,
             '@' => FastXFormat::FASTQ,
+            '\0' => FastXFormat::EOF,
             _ => FastXFormat::UNKNOWN,
         };
         if let FastXFormat::UNKNOWN = format
@@ -310,7 +330,7 @@ pub mod FastX
                 "Wrong format expected '>' or '@'!",
             ));
         }
-        Ok((format, buf))
+        Ok((format, buf[0]))
     }
 
     use std::fs::File;
@@ -322,16 +342,65 @@ pub mod FastX
         Ok(BufReader::new(file))
     }
 
-    pub fn from_reader(reader: &mut dyn Read) -> io::Result<Box<dyn FastXRead>>
+    pub fn from_reader(reader: &mut dyn BufRead) -> io::Result<Box<dyn FastXRead>>
     {
         let (format, first) = peek(reader)?;
         match format
         {
             FastXFormat::FASTA => Ok(Box::new(FastARecord::default())),
             FastXFormat::FASTQ => Ok(Box::new(FastQRecord::default())),
-            FastXFormat::UNKNOWN =>
+            FastXFormat::EOF | FastXFormat::UNKNOWN =>
             {
                 Err(io::Error::new(io::ErrorKind::InvalidData, format!("{:?}", first)))
+            }
+        }
+    }
+
+    /// from std::io::read_until, adapted to not consume the delimiter
+    fn read_until_before<R: BufRead + ?Sized>(
+        r: &mut R,
+        delim: u8,
+        buf: &mut Vec<u8>,
+    ) -> io::Result<usize>
+    {
+        let mut read = 0;
+        loop
+        {
+            let (done, used) = {
+                let available = match r.fill_buf()
+                {
+                    Ok(n) => n,
+                    //Err(ref e) if e.is_interrupted() => continue,
+                    Err(e) => return Err(e),
+                };
+                match memchr::memchr(delim, available)
+                {
+                    Some(i) =>
+                    {
+                        buf.extend_from_slice(&available[..=i]);
+                        (true, i + 1)
+                    }
+                    None =>
+                    {
+                        buf.extend_from_slice(available);
+                        (false, available.len())
+                    }
+                }
+            };
+            if done
+            {
+                r.consume(used - 1); // do not consume delimiter
+                read += used - 1;
+                return Ok(read);
+            }
+            else
+            {
+                r.consume(used);
+                read += used;
+            }
+            if used == 0
+            {
+                return Ok(read);
             }
         }
     }
@@ -340,7 +409,6 @@ pub mod FastX
 #[cfg(test)]
 mod tests
 {
-    use super::FastX::peek;
     use super::FastX::FastARecord;
     use super::FastX::FastQRecord;
     use super::FastX::FastXRead;
@@ -353,7 +421,7 @@ mod tests
         let mut x = BufReader::new(Cursor::new(">a\nAGTC\n>b\nTAGC\nTTTT\n>c\nGCTA"));
         let mut record = FastARecord::default();
         let _ = record.read(&mut x);
-        assert_eq!(">a", record.name());
+        assert_eq!("a", record.name());
         assert_eq!(b"AGTC".to_vec(), record.seq());
         assert_eq!(&b"AGTC".to_vec(), record.seq_raw());
         let _ = record.read(&mut x);
@@ -373,7 +441,7 @@ mod tests
         let mut reader = BufReader::new(Cursor::new(fasta));
         let mut record = FastARecord::default();
         let mut output: Vec<u8> = Vec::new();
-        peek(&mut reader).expect("peek");
+        //peek(&mut reader).expect("peek");
         while let Ok(_some @ 1..=usize::MAX) = record.read(&mut reader)
         {
             output.push(b'>');
