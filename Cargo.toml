@@ -1,6 +1,6 @@
 [package]
 name = "fastx"
-version = "0.2.1"
+version = "0.3.0"
 edition = "2021"
 authors = ["Andreas Hauser <Andreas.Hauser@LMU.de>"]
 description = "FastX reads Fasta and FastQ files with little overhead."
@@ -11,4 +11,5 @@ repository = "https://github.com/ahcm/fastx"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-memchr = "2.7.1"
+memchr = "2.7.4"
+flate2 = { version = "^1.0", features = ["zlib-ng-compat"], default-features = false }

@@ -1,6 +1,7 @@
 # FastX
 
 FastX implements low overhead readers for Fasta and FastQ.
+Version 0.3.0 add .gz support.
 
 ```
 let mut fastx_reader = FastX::reader_from_path(Path::new(&filename))?;

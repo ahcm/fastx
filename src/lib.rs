@@ -7,8 +7,12 @@ License: Attribution-ShareAlike 4.0 International
 #[allow(non_snake_case)]
 pub mod FastX
 {
+    use flate2::read::MultiGzDecoder;
+    use std::ffi::OsStr;
     use std::io;
     use std::io::BufRead;
+
+    const PER_THREAD_BUF_SIZE: usize = 600 * 1024 * 1024;
 
     pub enum FastXFormat
     {
@@ -336,10 +340,19 @@ pub mod FastX
     use std::fs::File;
     use std::io::BufReader;
     use std::path::Path;
-    pub fn reader_from_path(path: &Path) -> io::Result<BufReader<File>>
+
+    pub fn reader_from_path(path: &Path) -> io::Result<Box<dyn BufRead>>
     {
         let file = File::open(path)?;
-        Ok(BufReader::new(file))
+        let reader: Box<dyn BufRead> = match path.extension()
+        {
+            Some(extension) if extension == OsStr::new("gz") => Box::new(BufReader::with_capacity(
+                PER_THREAD_BUF_SIZE,
+                MultiGzDecoder::new(BufReader::new(file)),
+            )),
+            _ => Box::new(BufReader::with_capacity(PER_THREAD_BUF_SIZE, file)),
+        };
+        Ok(reader)
     }
 
     pub fn from_reader(reader: &mut dyn BufRead) -> io::Result<Box<dyn FastXRead>>
