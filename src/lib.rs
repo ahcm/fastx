@@ -38,7 +38,7 @@ pub mod FastX
         qual: Vec<u8>,
     }
 
-    pub trait FastXRead
+    pub trait FastXRead: std::fmt::Display
     {
         fn read(&mut self, reader: &mut dyn BufRead) -> io::Result<usize>;
         fn name(&self) -> &String;
@@ -54,6 +54,14 @@ pub mod FastX
     {
         fn comment(&self) -> &str;
         fn qual(&self) -> &Vec<u8>;
+    }
+
+    impl std::fmt::Display for FastARecord
+    {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+        {
+            write!(f, ">{}\n{}", self.name(), String::from_utf8_lossy(&self.seq()))
+        }
     }
 
     impl FastXRead for FastARecord
@@ -179,6 +187,20 @@ pub mod FastX
         }
     }
 
+    impl std::fmt::Display for FastQRecord
+    {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+        {
+            write!(
+                f,
+                "@{}\n{}\n+\n{}",
+                self.name(),
+                String::from_utf8_lossy(&self.seq()),
+                String::from_utf8_lossy(&self.qual())
+            )
+        }
+    }
+
     impl FastXRead for FastQRecord
     {
         fn name(&self) -> &String
@@ -238,6 +260,7 @@ pub mod FastX
                 Ok(some) => size = some,
             }
             rstrip_newline_string(&mut self.name); //self.name.truncate(size - 1); // truncate newline XXX non UNIX
+            assert!(self.name.remove(0) == '@');
 
             self.seq.clear();
             match reader.read_until(b'\n', &mut self.seq)
@@ -340,6 +363,7 @@ pub mod FastX
     use std::fs::File;
     use std::io::BufReader;
     use std::path::Path;
+    //use std::str::pattern::Pattern;
 
     pub fn reader_from_path(path: &Path) -> io::Result<Box<dyn BufRead>>
     {
@@ -489,17 +513,17 @@ mod tests
         ));
         let mut record = FastQRecord::default();
         let _ = record.read(&mut x);
-        assert_eq!("@a", record.name());
+        assert_eq!("a", record.name());
         assert_eq!(b"AGTC".to_vec(), record.seq());
         assert_eq!(&b"AGTC".to_vec(), record.seq_raw());
 
         let _ = record.read(&mut x);
-        assert_eq!("@b", record.name());
+        assert_eq!("b", record.name());
         assert_eq!(b"TAGCTTTT".to_vec(), record.seq());
         assert_eq!(&b"TAGCTTTT".to_vec(), record.seq_raw());
 
         let _ = record.read(&mut x);
-        assert_eq!("@c", record.name());
+        assert_eq!("c", record.name());
         assert_eq!(b"GCTA".to_vec(), record.seq());
         assert_eq!(&b"GCTA".to_vec(), record.seq_raw());
     }

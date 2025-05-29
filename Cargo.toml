@@ -1,6 +1,6 @@
 [package]
 name = "fastx"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 authors = ["Andreas Hauser <Andreas.Hauser@LMU.de>"]
 description = "FastX reads Fasta and FastQ files with little overhead."
@@ -12,4 +12,4 @@ repository = "https://github.com/ahcm/fastx"
 
 [dependencies]
 memchr = "2.7.4"
-flate2 = { version = "^1.0", features = ["zlib-ng-compat"], default-features = false }
+flate2 = { version = "^1.1", features = ["zlib-ng-compat"], default-features = false }
