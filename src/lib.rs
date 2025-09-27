@@ -75,18 +75,22 @@ pub mod FastX
 
         fn next(&mut self) -> Option<Self::Item>
         {
-            if self.done {
+            if self.done
+            {
                 return None;
             }
 
             let mut new_record = T::default();
-            match new_record.read(&mut self.reader) {
-                Ok(0) => {
+            match new_record.read(&mut self.reader)
+            {
+                Ok(0) =>
+                {
                     self.done = true;
                     None
                 }
                 Ok(_) => Some(Ok(new_record)),
-                Err(e) => {
+                Err(e) =>
+                {
                     self.done = true;
                     Some(Err(e))
                 }
