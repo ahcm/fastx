@@ -50,6 +50,50 @@ pub mod FastX
         fn lines(&self) -> Vec<&[u8]>;
     }
 
+    pub struct FastXIterator<R: BufRead, T: FastXRead + Default>
+    {
+        reader: R,
+        done: bool,
+        _phantom: std::marker::PhantomData<T>,
+    }
+
+    impl<R: BufRead, T: FastXRead + Default> FastXIterator<R, T>
+    {
+        pub fn new(reader: R) -> Self
+        {
+            Self {
+                reader,
+                done: false,
+                _phantom: std::marker::PhantomData,
+            }
+        }
+    }
+
+    impl<R: BufRead, T: FastXRead + Default> Iterator for FastXIterator<R, T>
+    {
+        type Item = io::Result<T>;
+
+        fn next(&mut self) -> Option<Self::Item>
+        {
+            if self.done {
+                return None;
+            }
+
+            let mut new_record = T::default();
+            match new_record.read(&mut self.reader) {
+                Ok(0) => {
+                    self.done = true;
+                    None
+                }
+                Ok(_) => Some(Ok(new_record)),
+                Err(e) => {
+                    self.done = true;
+                    Some(Err(e))
+                }
+            }
+        }
+    }
+
     pub trait FastQRead: FastXRead
     {
         fn comment(&self) -> &str;
@@ -393,6 +437,16 @@ pub mod FastX
         }
     }
 
+    pub fn fasta_iter<R: BufRead>(reader: R) -> FastXIterator<R, FastARecord>
+    {
+        FastXIterator::new(reader)
+    }
+
+    pub fn fastq_iter<R: BufRead>(reader: R) -> FastXIterator<R, FastQRecord>
+    {
+        FastXIterator::new(reader)
+    }
+
     /// from std::io::read_until, adapted to not consume the delimiter
     fn read_until_before<R: BufRead + ?Sized>(
         r: &mut R,
@@ -526,5 +580,41 @@ mod tests
         assert_eq!("c", record.name());
         assert_eq!(b"GCTA".to_vec(), record.seq());
         assert_eq!(&b"GCTA".to_vec(), record.seq_raw());
+    }
+
+    #[test]
+    fn fasta_iterator()
+    {
+        use super::FastX::fasta_iter;
+        let reader = BufReader::new(Cursor::new(">a\nAGTC\n>b\nTAGC\nTTTT\n>c\nGCTA"));
+        let records: Result<Vec<_>, _> = fasta_iter(reader).collect();
+        let records = records.unwrap();
+
+        assert_eq!(3, records.len());
+        assert_eq!("a", records[0].name());
+        assert_eq!(b"AGTC".to_vec(), records[0].seq());
+        assert_eq!("b", records[1].name());
+        assert_eq!(b"TAGCTTTT".to_vec(), records[1].seq());
+        assert_eq!("c", records[2].name());
+        assert_eq!(b"GCTA".to_vec(), records[2].seq());
+    }
+
+    #[test]
+    fn fastq_iterator()
+    {
+        use super::FastX::fastq_iter;
+        let reader = BufReader::new(Cursor::new(
+            "@a\nAGTC\n+\n'&'*+\n@b\nTAGCTTTT\n+\n'&'*+'&'*+\n@c\nGCTA\n+\n'&'*+",
+        ));
+        let records: Result<Vec<_>, _> = fastq_iter(reader).collect();
+        let records = records.unwrap();
+
+        assert_eq!(3, records.len());
+        assert_eq!("a", records[0].name());
+        assert_eq!(b"AGTC".to_vec(), records[0].seq());
+        assert_eq!("b", records[1].name());
+        assert_eq!(b"TAGCTTTT".to_vec(), records[1].seq());
+        assert_eq!("c", records[2].name());
+        assert_eq!(b"GCTA".to_vec(), records[2].seq());
     }
 }
