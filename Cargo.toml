@@ -11,5 +11,5 @@ repository = "https://github.com/ahcm/fastx"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-memchr = "2.7.4"
+memchr = "^2.7"
 flate2 = { version = "^1.1", features = ["zlib-ng-compat"], default-features = false }
