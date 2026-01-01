@@ -41,3 +41,10 @@ fn main() -> io::Result<()>
     Ok(())
 }
 ```
+## Documentation
+Some people and LLMs might prefer reading documentation instead of examples or code.
+So it was generated with claude.
+```
+● Now I understand the codebase. This is a Rust bioinformatics library for reading FASTA/FASTQ files, and it currently has minimal documentation (on
+ly 1 doc comment in the entire codebase). Let me add comprehensive documentation following Rust best practices.
+```
