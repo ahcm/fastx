@@ -71,7 +71,7 @@ License: Attribution-ShareAlike 4.0 International
 //! ## Working with gzip-compressed files
 //!
 //! ```no_run
-//! use fastx::FastX::{reader_from_path, fastq_iter};
+//! use fastx::FastX::{reader_from_path, fastq_iter, FastXRead};
 //! use std::path::Path;
 //!
 //! // Automatically detects .gz extension and decompresses
@@ -236,7 +236,7 @@ pub mod FastX
     /// # Example
     ///
     /// ```no_run
-    /// use fastx::FastX::fasta_iter;
+    /// use fastx::FastX::{fasta_iter, FastXRead};
     /// use std::io::BufReader;
     /// use std::fs::File;
     ///
@@ -675,7 +675,7 @@ pub mod FastX
     /// # Example
     ///
     /// ```no_run
-    /// use fastx::FastX::{reader_from_path, fasta_iter};
+    /// use fastx::FastX::{reader_from_path, fasta_iter, FastXRead};
     /// use std::path::Path;
     ///
     /// // Automatically handles both compressed and uncompressed files

@@ -41,6 +41,51 @@ fn main() -> io::Result<()>
     Ok(())
 }
 ```
+
+## Features
+
+FastX supports different compression backends through Cargo features. Choose the backend that best fits your needs:
+
+### Default: Pure Rust Backend
+
+By default, FastX uses the `rust-backend` feature, which provides a pure Rust implementation (miniz_oxide) for gzip decompression:
+
+```toml
+[dependencies]
+fastx = "0.5"
+```
+
+This is the safest option with no C dependencies, making it ideal for cross-compilation and environments where you want to avoid native code.
+
+### Alternative Backends
+
+For better performance, you can select different compression backends:
+
+**System zlib** - Uses the zlib library installed on your system (typically fastest on systems with optimized zlib):
+```toml
+[dependencies]
+fastx = { version = "0.5", default-features = false, features = ["zlib"] }
+```
+
+**zlib-ng (compatibility mode)** - Modern, fast implementation that's API-compatible with zlib:
+```toml
+[dependencies]
+fastx = { version = "0.5", default-features = false, features = ["zlib-ng-compat"] }
+```
+
+**zlib-ng (native API)** - Fastest option using zlib-ng's native API:
+```toml
+[dependencies]
+fastx = { version = "0.5", default-features = false, features = ["zlib-ng"] }
+```
+
+### Performance Considerations
+
+- **rust-backend**: Safe, portable, no build dependencies. Moderate performance.
+- **zlib**: Good performance if your system has an optimized zlib (e.g., Intel's optimized version).
+- **zlib-ng-compat**: Better performance than standard zlib on most systems.
+- **zlib-ng**: Best performance, but requires C compiler at build time.
+
 ## Documentation
 Some people and LLMs might prefer reading documentation instead of examples or code.
 So it was generated with claude.

@@ -1,6 +1,6 @@
 [package]
 name = "fastx"
-version = "0.5.1"
+version = "0.5.2"
 edition = "2021"
 authors = ["Andreas Hauser <Andreas.Hauser@LMU.de>"]
 description = "FastX reads Fasta and FastQ files with little overhead."
@@ -10,6 +10,17 @@ repository = "https://github.com/ahcm/fastx"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+default = ["rust-backend"]
+# Pure Rust implementation (miniz_oxide) - safe, portable, no C dependencies
+rust-backend = ["flate2/rust_backend"]
+# System zlib - typically fastest on systems with optimized zlib
+zlib = ["flate2/zlib"]
+# zlib-ng in compatibility mode - modern, fast implementation
+zlib-ng-compat = ["flate2/zlib-ng-compat"]
+# Native zlib-ng API - fastest option, but less compatible
+zlib-ng = ["flate2/zlib-ng"]
+
 [dependencies]
 memchr = "^2.7"
-flate2 = { version = "^1.1", features = ["zlib-ng-compat"], default-features = false }
+flate2 = { version = "^1.1", default-features = false }
