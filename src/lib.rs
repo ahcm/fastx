@@ -81,6 +81,31 @@ License: Attribution-ShareAlike 4.0 International
 //!     println!("{}", record.id());
 //! }
 //! ```
+//!
+//! ## Random access with indexed files
+//!
+//! ```no_run
+//! use fastx::indexed::IndexedFastXReader;
+//! use fastx::FastX::FastXRead;
+//! use std::path::Path;
+//!
+//! // Open an indexed FASTA file (requires .fai and .gzi files)
+//! let mut reader = IndexedFastXReader::from_path(Path::new("data.fasta.gz")).unwrap();
+//!
+//! // Fetch a specific sequence by ID
+//! let record = reader.fetch("chr1").unwrap();
+//! println!("{}: {} bp", record.id(), record.seq_len());
+//!
+//! // Fetch a specific region
+//! let region = reader.fetch_range("chr1", 1000, 2000).unwrap();
+//! println!("Region: {} bp", region.len());
+//! ```
+
+// Indexed random access modules
+pub mod bgzf;
+pub mod fai;
+pub mod gzi;
+pub mod indexed;
 
 #[allow(non_snake_case)]
 pub mod FastX
