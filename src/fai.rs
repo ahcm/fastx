@@ -193,21 +193,13 @@ impl FaiIndex
             let line_bases = parts[3].parse::<u64>().map_err(|_| {
                 io::Error::new(
                     io::ErrorKind::InvalidData,
-                    format!(
-                        "Invalid line_bases at line {}: '{}'",
-                        line_num + 1,
-                        parts[3]
-                    ),
+                    format!("Invalid line_bases at line {}: '{}'", line_num + 1, parts[3]),
                 )
             })?;
             let line_width = parts[4].parse::<u64>().map_err(|_| {
                 io::Error::new(
                     io::ErrorKind::InvalidData,
-                    format!(
-                        "Invalid line_width at line {}: '{}'",
-                        line_num + 1,
-                        parts[4]
-                    ),
+                    format!("Invalid line_width at line {}: '{}'", line_num + 1, parts[4]),
                 )
             })?;
 

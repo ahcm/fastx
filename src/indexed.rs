@@ -86,10 +86,7 @@ impl IndexedFastXReader
         let fai_index = FaiIndex::from_path(&fai_path)?;
 
         // Check if file is gzip compressed and look for .gzi
-        let is_gzip = path
-            .extension()
-            .map(|e| e == "gz")
-            .unwrap_or(false);
+        let is_gzip = path.extension().map(|e| e == "gz").unwrap_or(false);
 
         let file = File::open(path)?;
 
@@ -123,10 +120,7 @@ impl IndexedFastXReader
             ));
         };
 
-        Ok(Self {
-            reader,
-            fai_index,
-        })
+        Ok(Self { reader, fai_index })
     }
 
     /// Fetch a sequence by its ID.
@@ -211,10 +205,7 @@ impl IndexedFastXReader
         {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
-                format!(
-                    "Start position {} beyond sequence length {}",
-                    start, entry.length
-                ),
+                format!("Start position {} beyond sequence length {}", start, entry.length),
             ));
         }
 

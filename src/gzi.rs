@@ -70,7 +70,9 @@ impl GziIndex
         }
 
         // Read number of entries (little-endian u64)
-        let num_entries = u64::from_le_bytes([buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7]]) as usize;
+        let num_entries = u64::from_le_bytes([
+            buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7],
+        ]) as usize;
 
         let expected_size = 8 + num_entries * 16;
         if buffer.len() < expected_size
@@ -212,12 +214,13 @@ mod tests
         cursor.read_to_end(&mut buffer).unwrap();
 
         let num_entries = u64::from_le_bytes([
-            buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5],
-            buffer[6], buffer[7],
+            buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7],
         ]) as usize;
         assert_eq!(num_entries, 0);
 
-        let index = GziIndex { entries: Vec::new() };
+        let index = GziIndex {
+            entries: Vec::new(),
+        };
         assert!(index.is_empty());
         assert_eq!(index.len(), 0);
     }
@@ -261,14 +264,10 @@ mod tests
         // Entry 1: compressed=300, uncompressed=10000
         let data: Vec<u8> = vec![
             // num_entries = 2 (little-endian u64)
-            2, 0, 0, 0, 0, 0, 0, 0,
-            // Entry 0: compressed = 100
-            100, 0, 0, 0, 0, 0, 0, 0,
-            // Entry 0: uncompressed = 0
-            0, 0, 0, 0, 0, 0, 0, 0,
-            // Entry 1: compressed = 300
-            44, 1, 0, 0, 0, 0, 0, 0,
-            // Entry 1: uncompressed = 10000
+            2, 0, 0, 0, 0, 0, 0, 0, // Entry 0: compressed = 100
+            100, 0, 0, 0, 0, 0, 0, 0, // Entry 0: uncompressed = 0
+            0, 0, 0, 0, 0, 0, 0, 0, // Entry 1: compressed = 300
+            44, 1, 0, 0, 0, 0, 0, 0, // Entry 1: uncompressed = 10000
             16, 39, 0, 0, 0, 0, 0, 0,
         ];
 
@@ -277,12 +276,13 @@ mod tests
         cursor.read_to_end(&mut buffer).unwrap();
 
         let num_entries = u64::from_le_bytes([
-            buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5],
-            buffer[6], buffer[7],
+            buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7],
         ]) as usize;
         assert_eq!(num_entries, 2);
 
-        let index = GziIndex { entries: vec![(100, 0), (300, 10000)] };
+        let index = GziIndex {
+            entries: vec![(100, 0), (300, 10000)],
+        };
 
         assert_eq!(index.len(), 2);
         assert_eq!(index.get_compressed_offset(0), Some(100));

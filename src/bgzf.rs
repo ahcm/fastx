@@ -12,6 +12,7 @@ const GZIP_ID1: u8 = 0x1f;
 const GZIP_ID2: u8 = 0x8b;
 const GZIP_CM_DEFLATE: u8 = 8;
 const GZIP_FLG_FEXTRA: u8 = 4;
+#[allow(dead_code)]
 const GZIP_OS_UNKNOWN: u8 = 255;
 const BGZF_EXTRA_ID: u8 = 66; // 'B'
 const BGZF_EXTRA_SUBFIELD: u8 = 67; // 'C'
@@ -111,23 +112,14 @@ impl<R: Read + Seek> BgzfReader<R>
     /// * `Err(io::Error)` - If no index is available or seeking fails
     pub fn seek_uncompressed(&mut self, uncompressed_pos: u64) -> io::Result<u64>
     {
-        let gzi = self
-            .gzi_index
-            .as_ref()
-            .ok_or_else(|| {
-                io::Error::new(
-                    io::ErrorKind::NotFound,
-                    "No .gzi index available for seeking",
-                )
-            })?;
+        let gzi = self.gzi_index.as_ref().ok_or_else(|| {
+            io::Error::new(io::ErrorKind::NotFound, "No .gzi index available for seeking")
+        })?;
 
         let compressed_offset = gzi.get_compressed_offset(uncompressed_pos).ok_or_else(|| {
             io::Error::new(
                 io::ErrorKind::InvalidInput,
-                format!(
-                    "Uncompressed offset {} beyond index range",
-                    uncompressed_pos
-                ),
+                format!("Uncompressed offset {} beyond index range", uncompressed_pos),
             )
         })?;
 
@@ -152,9 +144,9 @@ impl<R: Read + Seek> BgzfReader<R>
 
         // Now we're at or past the target position
         // Set buf_pos to the correct offset within the current block
-        let offset_in_block =
-            (uncompressed_pos - (self.current_uncompressed_pos - self.decompressed_buf.len() as u64))
-                as usize;
+        let offset_in_block = (uncompressed_pos
+            - (self.current_uncompressed_pos - self.decompressed_buf.len() as u64))
+            as usize;
         self.buf_pos = offset_in_block;
 
         Ok(uncompressed_pos)
@@ -169,8 +161,7 @@ impl<R: Read + Seek> BgzfReader<R>
         }
         else
         {
-            self.current_uncompressed_pos - self.decompressed_buf.len() as u64
-                + self.buf_pos as u64
+            self.current_uncompressed_pos - self.decompressed_buf.len() as u64 + self.buf_pos as u64
         }
     }
 
@@ -189,28 +180,19 @@ impl<R: Read + Seek> BgzfReader<R>
         }
         if n < 18
         {
-            return Err(io::Error::new(
-                io::ErrorKind::UnexpectedEof,
-                "Incomplete BGZF header",
-            ));
+            return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "Incomplete BGZF header"));
         }
 
         // Verify gzip magic
         if header[0] != GZIP_ID1 || header[1] != GZIP_ID2
         {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "Invalid gzip magic number",
-            ));
+            return Err(io::Error::new(io::ErrorKind::InvalidData, "Invalid gzip magic number"));
         }
 
         // Verify deflate compression method
         if header[2] != GZIP_CM_DEFLATE
         {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "Not deflate compression",
-            ));
+            return Err(io::Error::new(io::ErrorKind::InvalidData, "Not deflate compression"));
         }
 
         let flg = header[3];
@@ -240,9 +222,10 @@ impl<R: Read + Seek> BgzfReader<R>
         {
             let si1 = extra[xlen - remaining_xlen];
             let si2 = extra[xlen - remaining_xlen + 1];
-            let sublen =
-                u16::from_le_bytes([extra[xlen - remaining_xlen + 2], extra[xlen - remaining_xlen + 3]])
-                    as usize;
+            let sublen = u16::from_le_bytes([
+                extra[xlen - remaining_xlen + 2],
+                extra[xlen - remaining_xlen + 3],
+            ]) as usize;
 
             if si1 == BGZF_EXTRA_ID && si2 == BGZF_EXTRA_SUBFIELD && sublen >= 2
             {
