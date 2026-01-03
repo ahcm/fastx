@@ -83,7 +83,7 @@ impl RemoteReader
     pub fn new(url: impl Into<String>) -> io::Result<Self>
     {
         let url = url.into();
-        let agent = Agent::new();
+        let agent = Agent::new_with_defaults();
 
         // Probe for file size using a HEAD request
         let file_size = Self::get_file_size_for_url(&agent, &url)?;
@@ -109,8 +109,10 @@ impl RemoteReader
         })?;
 
         let content_length = response
-            .header("Content-Length")
-            .and_then(|s: &str| s.parse::<u64>().ok())
+            .headers()
+            .get("Content-Length")
+            .and_then(|v| v.to_str().ok())
+            .and_then(|s| s.parse::<u64>().ok())
             .ok_or_else(|| {
                 io::Error::new(
                     io::ErrorKind::InvalidData,
@@ -152,8 +154,10 @@ impl RemoteReader
         })?;
 
         let content_length = response
-            .header("Content-Length")
-            .and_then(|s: &str| s.parse::<u64>().ok())
+            .headers()
+            .get("Content-Length")
+            .and_then(|v| v.to_str().ok())
+            .and_then(|s| s.parse::<u64>().ok())
             .ok_or_else(|| {
                 io::Error::new(
                     io::ErrorKind::InvalidData,
@@ -197,7 +201,7 @@ impl RemoteReader
         let response = self
             .agent
             .get(&self.url)
-            .set("Range", &range)
+            .header("Range", &range)
             .call()
             .map_err(|e| {
                 io::Error::new(
@@ -216,8 +220,12 @@ impl RemoteReader
             ));
         }
 
-        let mut data = Vec::new();
-        response.into_reader().read_to_end(&mut data)?;
+        let data = response.into_body().read_to_vec().map_err(|e| {
+            io::Error::new(
+                io::ErrorKind::ConnectionRefused,
+                format!("Failed to read response body: {}", e),
+            )
+        })?;
 
         Ok(CachedBlock { offset, data })
     }
@@ -347,7 +355,7 @@ mod tests
     {
         // Test block_start calculation without making HTTP requests
         let url = "http://example.com/test";
-        let agent = Agent::new();
+        let agent = Agent::new_with_defaults();
 
         // Create a reader without probing file size
         let reader = RemoteReader {
@@ -370,7 +378,7 @@ mod tests
     fn test_block_start_custom_size()
     {
         let url = "http://example.com/test";
-        let agent = Agent::new();
+        let agent = Agent::new_with_defaults();
 
         let reader = RemoteReader {
             url: url.to_string(),

@@ -424,7 +424,7 @@ impl<R: Read + Seek> IndexedFastXReader<R>
 #[allow(dead_code)]
 fn fetch_url(url: &str) -> io::Result<Vec<u8>>
 {
-    let agent = ureq::Agent::new();
+    let agent = ureq::Agent::new_with_defaults();
 
     let response = agent.get(url).call().map_err(|e| {
         io::Error::new(
@@ -433,8 +433,12 @@ fn fetch_url(url: &str) -> io::Result<Vec<u8>>
         )
     })?;
 
-    let mut data = Vec::new();
-    response.into_reader().read_to_end(&mut data)?;
+    let data = response.into_body().read_to_vec().map_err(|e| {
+        io::Error::new(
+            io::ErrorKind::ConnectionRefused,
+            format!("Failed to read response body: {}", e),
+        )
+    })?;
 
     Ok(data)
 }
