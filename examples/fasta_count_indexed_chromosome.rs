@@ -9,7 +9,7 @@ use fastx::FastX::FastXRead;
 
 fn main()
 {
-    let id = args().nth(2).unwrap();
+    let id = args().nth(1).unwrap();
     for filename in args().skip(2)
     {
         println!("{}", filename);
