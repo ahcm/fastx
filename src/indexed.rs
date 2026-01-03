@@ -274,6 +274,7 @@ impl<R: Read + Seek> IndexedFastXReader<R>
                 format!("Sequence '{}' not found in index", seq_id),
             )
         })?;
+        println!("found index: {:?}", entry);
 
         // Clone to avoid borrowing issues
         let entry = entry.clone();
@@ -317,22 +318,43 @@ impl<R: Read + Seek> IndexedFastXReader<R>
             }
             seq_data.extend_from_slice(&buf[..n]);
             remaining -= n as u64;
+            col += n as u64; // Advance column by actual bytes read
 
-            // Skip the newline
-            if col + n as u64 >= entry.line_bases && remaining > 0
+            // Skip the newline if we reached the end of a line
+            // Note: Some files may not have newlines (continuous sequence),
+            // so we check if the next byte is actually a newline before skipping
+            if col >= entry.line_bases && remaining > 0
             {
-                let mut newline = [0u8; 1];
-                self.reader.read_exact(&mut newline)?;
-                if newline[0] != b'\n'
+                // Peek at the next byte to see if it's a newline
+                let mut peek_byte = [0u8; 1];
+                let n = self.reader.read(&mut peek_byte)?;
+                if n == 0
                 {
                     return Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "Expected newline after sequence line",
+                        io::ErrorKind::UnexpectedEof,
+                        "Unexpected end of file while reading sequence",
                     ));
                 }
+                if peek_byte[0] == b'\n'
+                {
+                    // It's a newline, we've consumed it
+                    col = 0;
+                }
+                else
+                {
+                    // Not a newline - this means the sequence is continuous
+                    // Put the byte back by adding it to our sequence data
+                    seq_data.push(peek_byte[0]);
+                    remaining -= 1;
+                    // Advance col (accounting for the extra base we just read)
+                    col += 1;
+                    // If we've gone past the line width, reset to 0 (wrap around)
+                    if col >= entry.line_width
+                    {
+                        col = 0;
+                    }
+                }
             }
-
-            col = 0;
         }
 
         Ok(seq_data)

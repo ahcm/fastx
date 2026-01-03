@@ -170,15 +170,25 @@ impl<R: Read + Seek> BgzfReader<R>
     /// Returns true if a block was read, false on EOF.
     fn read_next_block(&mut self) -> io::Result<bool>
     {
-        // Read and verify BGZF header
-        let mut header = [0u8; 18];
-        let n = self.inner.read(&mut header)?;
-        if n == 0
+        // Read and verify BGZF header (first 12 bytes: ID1, ID2, CM, FLG, MTIME, XFL, OS, XLEN)
+        let mut header = [0u8; 12];
+        let mut total_read = 0;
+        while total_read < 12
+        {
+            let n = self.inner.read(&mut header[total_read..])?;
+            if n == 0
+            {
+                break;
+            }
+            total_read += n;
+        }
+
+        if total_read == 0
         {
             self.eof = true;
             return Ok(false);
         }
-        if n < 18
+        if total_read < 12
         {
             return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "Incomplete BGZF header"));
         }
@@ -240,6 +250,11 @@ impl<R: Read + Seek> BgzfReader<R>
                 break;
             }
 
+            // Prevent underflow: ensure we have enough bytes for SI1, SI2, SUBLEN, and the data
+            if sublen > remaining_xlen.saturating_sub(4)
+            {
+                break;
+            }
             remaining_xlen -= 4 + sublen;
         }
 
@@ -261,9 +276,24 @@ impl<R: Read + Seek> BgzfReader<R>
         // So now we're at the start of compressed data
 
         // Calculate remaining compressed data size
-        // Block size includes everything from ID1 through the block size field
-        // So compressed data size = block_size - 1 - 1 - 2 - 2 - xlen = block_size - 6 - xlen
-        let compressed_size = block_size - 6 - xlen;
+        // According to BGZF spec, BSIZE is "the size of the BGZF block minus one"
+        // So actual block size = BSIZE + 1
+        // Structure:
+        //   - Header: ID1(1) + ID2(1) + CM(1) + FLG(1) + MTIME(4) + XFL(1) + OS(1) + XLEN(2) = 12 bytes
+        //   - Extra field (XLEN bytes)
+        //   - Compressed data (variable)
+        //   - Trailer: CRC32(4) + ISIZE(4) = 8 bytes
+        // Actual block size = BSIZE + 1 = header(12) + extra_field(XLEN) + compressed_data + trailer(8)
+        // Compressed data size = (BSIZE + 1) - header(12) - extra_field(XLEN) - trailer(8)
+        let compressed_size = (block_size as isize + 1) - 12 - xlen as isize - 8;
+        if compressed_size <= 0
+        {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("Invalid BGZF block size: {}, xlen: {}", block_size, xlen),
+            ));
+        }
+        let compressed_size = compressed_size as usize;
 
         // Read compressed data
         let mut compressed_data = vec![0u8; compressed_size];
@@ -274,8 +304,9 @@ impl<R: Read + Seek> BgzfReader<R>
         self.inner.read_exact(&mut trailer)?;
 
         // Decompress the block
+        // Set capacity but keep length at 0 so decompress_vec appends to empty buffer
         self.decompressed_buf.clear();
-        self.decompressed_buf.resize(BGZF_MAX_BLOCK_SIZE, 0);
+        self.decompressed_buf.reserve(BGZF_MAX_BLOCK_SIZE);
 
         let mut decompress = Decompress::new(false);
         decompress.decompress_vec(

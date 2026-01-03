@@ -7,8 +7,6 @@
 
 use std::error::Error;
 
-use fastx::FastX::FastXRead;
-
 fn main() -> Result<(), Box<dyn Error>>
 {
     // URLs for the data and indexes
@@ -19,14 +17,14 @@ fn main() -> Result<(), Box<dyn Error>>
     // Create the remote indexed reader
     let mut reader = fastx::indexed::IndexedFastXReader::from_url(data_url, fai_url, gzi_url)?;
 
-    // Fetch chromosome 8
-    println!("Fetching chromosome 8...");
-    let record = reader.fetch("8")?;
+    // Fetch just the first 1000 bases of chromosome 8
+    println!("Fetching first 1000 bases of chromosome 8...");
+    let seq = reader.fetch_range("8", 0, 1000)?;
 
-    // Get the sequence ID and length
-    println!("Sequence ID: {}", record.id());
-    println!("Description: {}", record.desc());
-    println!("Sequence length: {} bp", record.seq_len());
+    println!("Fetched {} bases", seq.len());
+    let first_100 = std::str::from_utf8(&seq[..seq.len().min(100)])
+        .unwrap_or("<invalid UTF-8>");
+    println!("First 100 bases: {}", first_100);
 
     Ok(())
 }
