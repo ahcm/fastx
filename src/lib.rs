@@ -107,6 +107,9 @@ pub mod fai;
 pub mod gzi;
 pub mod indexed;
 
+#[cfg(feature = "url")]
+pub mod remote;
+
 #[allow(non_snake_case)]
 pub mod FastX
 {

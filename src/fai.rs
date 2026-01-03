@@ -123,7 +123,7 @@ impl FaiEntry
 #[derive(Debug, Clone)]
 pub struct FaiIndex
 {
-    entries: HashMap<String, FaiEntry>,
+    pub(crate) entries: HashMap<String, FaiEntry>,
 }
 
 impl FaiIndex

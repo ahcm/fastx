@@ -20,7 +20,10 @@ zlib = ["flate2/zlib"]
 zlib-ng-compat = ["flate2/zlib-ng-compat"]
 # Native zlib-ng API - fastest option, but less compatible
 zlib-ng = ["flate2/zlib-ng"]
+# URL support for remote indexed FASTA/FASTQ files
+url = ["dep:ureq"]
 
 [dependencies]
 memchr = "^2.7"
 flate2 = { version = "^1.1", default-features = false }
+ureq = { version = "^2", optional = true, default-features = false, features = ["socks-proxy"] }
