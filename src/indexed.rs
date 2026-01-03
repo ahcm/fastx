@@ -194,10 +194,7 @@ impl IndexedFastXReader<File>
         let remote_reader = RemoteReader::new(data_url)?;
         let reader = BgzfReader::with_index(remote_reader, gzi_index)?;
 
-        Ok(IndexedFastXReader {
-            reader,
-            fai_index,
-        })
+        Ok(IndexedFastXReader { reader, fai_index })
     }
 }
 
@@ -285,10 +282,7 @@ impl<R: Read + Seek> IndexedFastXReader<R>
         {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
-                format!(
-                    "Start position {} beyond sequence length {}",
-                    start, entry.length
-                ),
+                format!("Start position {} beyond sequence length {}", start, entry.length),
             ));
         }
 
@@ -440,9 +434,7 @@ fn fetch_url(url: &str) -> io::Result<Vec<u8>>
     })?;
 
     let mut data = Vec::new();
-    response
-        .into_reader()
-        .read_to_end(&mut data)?;
+    response.into_reader().read_to_end(&mut data)?;
 
     Ok(data)
 }
@@ -454,9 +446,8 @@ fn parse_fai_from_bytes(data: &[u8]) -> io::Result<FaiIndex>
     use crate::fai::FaiEntry;
     use std::collections::HashMap;
 
-    let text = std::str::from_utf8(data).map_err(|_| {
-        io::Error::new(io::ErrorKind::InvalidData, "FAI data is not valid UTF-8")
-    })?;
+    let text = std::str::from_utf8(data)
+        .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "FAI data is not valid UTF-8"))?;
 
     let mut entries = HashMap::new();
 
@@ -499,21 +490,13 @@ fn parse_fai_from_bytes(data: &[u8]) -> io::Result<FaiIndex>
         let line_bases = parts[3].parse::<u64>().map_err(|_| {
             io::Error::new(
                 io::ErrorKind::InvalidData,
-                format!(
-                    "Invalid line_bases at line {}: '{}'",
-                    line_num + 1,
-                    parts[3]
-                ),
+                format!("Invalid line_bases at line {}: '{}'", line_num + 1, parts[3]),
             )
         })?;
         let line_width = parts[4].parse::<u64>().map_err(|_| {
             io::Error::new(
                 io::ErrorKind::InvalidData,
-                format!(
-                    "Invalid line_width at line {}: '{}'",
-                    line_num + 1,
-                    parts[4]
-                ),
+                format!("Invalid line_width at line {}: '{}'", line_num + 1, parts[4]),
             )
         })?;
 
@@ -549,7 +532,6 @@ fn parse_fai_from_bytes(data: &[u8]) -> io::Result<FaiIndex>
 #[allow(dead_code)]
 fn parse_gzi_from_bytes(data: &[u8]) -> io::Result<GziIndex>
 {
-
     if data.len() < 8
     {
         return Err(io::Error::new(
@@ -568,11 +550,7 @@ fn parse_gzi_from_bytes(data: &[u8]) -> io::Result<GziIndex>
     {
         return Err(io::Error::new(
             io::ErrorKind::InvalidData,
-            format!(
-                "GZI data too short: expected {} bytes, got {}",
-                expected_size,
-                data.len()
-            ),
+            format!("GZI data too short: expected {} bytes, got {}", expected_size, data.len()),
         ));
     }
 
