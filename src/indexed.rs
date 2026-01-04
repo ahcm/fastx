@@ -6,7 +6,7 @@
 use crate::bgzf::BgzfReader;
 use crate::fai::{FaiEntry, FaiIndex};
 use crate::gzi::GziIndex;
-use crate::FastX::FastARecord;
+use crate::FastX::{FastARecord, FastXRead};
 use std::fs::File;
 use std::io::{self, Read, Seek};
 use std::path::Path;
@@ -274,7 +274,6 @@ impl<R: Read + Seek> IndexedFastXReader<R>
                 format!("Sequence '{}' not found in index", seq_id),
             )
         })?;
-        println!("found index: {:?}", entry);
 
         // Clone to avoid borrowing issues
         let entry = entry.clone();
@@ -363,59 +362,41 @@ impl<R: Read + Seek> IndexedFastXReader<R>
     /// Fetch a sequence using its FAI entry directly.
     fn fetch_entry(&mut self, entry: &FaiEntry) -> io::Result<FastARecord>
     {
-        // Seek to the sequence start
-        self.reader.seek_uncompressed(entry.offset)?;
+        // The FAI offset points to the sequence data (after the header line).
+        // We need to find the header start by seeking backwards to find the '>' character.
+        // Search up to 4KB backwards which should be enough for any header.
+        const MAX_HEADER_SEARCH: u64 = 4096;
 
-        // Read the header line (first line after seeking)
-        let mut header = String::new();
-        let mut header_byte = [0u8; 1];
-        loop
+        let header_offset = entry.offset.saturating_sub(MAX_HEADER_SEARCH);
+
+        // Seek to where the header might start
+        self.reader.seek_uncompressed(header_offset)?;
+
+        // Read data until we find '>' or reach entry.offset
+        let buffer_len = (entry.offset - header_offset) as usize;
+        let mut buffer = vec![0u8; buffer_len];
+        self.reader.read_exact(&mut buffer)?;
+
+        // Find the last '>' before entry.offset (the header start)
+        let header_start = match buffer.iter().rposition(|&b| b == b'>')
         {
-            let n = self.reader.read(&mut header_byte)?;
-            if n == 0 || header_byte[0] == b'\n'
+            Some(pos) => header_offset + pos as u64,
+            None =>
             {
-                break;
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("Could not find FASTA header for sequence '{}'", entry.name),
+                ));
             }
-            header.push(header_byte[0] as char);
-        }
+        };
 
-        // Read the entire sequence
-        let mut raw_seq = Vec::new();
-        let mut total_bases = 0u64;
-        let mut buf = [0u8; 8192];
+        // Seek to the header start and parse the record
+        self.reader.seek_uncompressed(header_start)?;
 
-        while total_bases < entry.length
-        {
-            let n = self.reader.read(&mut buf)?;
-            if n == 0
-            {
-                break;
-            }
+        let mut record = FastARecord::default();
+        record.read(&mut self.reader)?;
 
-            // Filter out newlines
-            for &byte in &buf[..n]
-            {
-                if byte != b'\n'
-                {
-                    raw_seq.push(byte);
-                    total_bases += 1;
-                    if total_bases >= entry.length
-                    {
-                        break;
-                    }
-                }
-                else
-                {
-                    // Keep newline in raw_seq for compatibility with FastARecord
-                    raw_seq.push(byte);
-                }
-            }
-        }
-
-        Ok(FastARecord {
-            name: header,
-            raw_seq,
-        })
+        Ok(record)
     }
 
     /// Get a reference to the FAI index.

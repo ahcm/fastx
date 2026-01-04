@@ -179,6 +179,39 @@ impl GziIndex
         }
     }
 
+    /// Get the uncompressed offset for a given compressed position.
+    ///
+    /// Returns the uncompressed position that corresponds to a compressed file offset.
+    ///
+    /// # Arguments
+    ///
+    /// * `compressed_offset` - Position in the compressed file
+    ///
+    /// # Returns
+    ///
+    /// * `Some(offset)` - The uncompressed stream position
+    /// * `None` - If the compressed offset is not in the index
+    pub fn get_uncompressed_offset(&self, compressed_offset: u64) -> Option<u64>
+    {
+        if self.entries.is_empty()
+        {
+            return None;
+        }
+
+        // Binary search for the compressed offset
+        let result = self
+            .entries
+            .binary_search_by(|(comp, _)| comp.cmp(&compressed_offset));
+
+        match result
+        {
+            Ok(i) => Some(self.entries[i].1),
+            Err(0) => None, // Before first entry
+            Err(i) if i >= self.entries.len() => Some(self.entries.last()?.1), // Beyond or at last, use last
+            Err(i) => Some(self.entries[i - 1].1), // Between entries, use previous
+        }
+    }
+
     /// Get the number of index entries.
     pub fn len(&self) -> usize
     {

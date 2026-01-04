@@ -123,12 +123,21 @@ impl<R: Read + Seek> BgzfReader<R>
             )
         })?;
 
+        // Get the corresponding uncompressed offset for this compressed offset
+        let block_start_uncompressed = gzi.get_uncompressed_offset(compressed_offset).ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("Could not find uncompressed offset for compressed offset {}", compressed_offset),
+            )
+        })?;
+
         // Seek to the compressed offset
         self.inner.seek(SeekFrom::Start(compressed_offset))?;
 
         // Reset decompression state
         self.decompressed_buf.clear();
         self.buf_pos = 0;
+        self.current_uncompressed_pos = block_start_uncompressed;  // Important: start from GZI entry's position
 
         // Read and decompress blocks until we reach the target position
         while self.current_uncompressed_pos < uncompressed_pos
