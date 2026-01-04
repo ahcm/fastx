@@ -39,7 +39,20 @@ License: Attribution-ShareAlike 4.0 International
 //!
 //! # Examples
 //!
-//! ## Iterator-based reading (recommended)
+//! ## High-performance reading (recommended for speed)
+//!
+//! ```no_run
+//! use std::io::BufReader;
+//! use std::fs::File;
+//! use fastx::FastX::{fasta_for_each, FastXRead};
+//!
+//! let reader = BufReader::new(File::open("sequences.fasta").unwrap());
+//! fasta_for_each(reader, |record| {
+//!     println!("{} - length: {}", record.id(), record.seq_len());
+//! }).unwrap();
+//! ```
+//!
+//! ## Iterator-based reading (convenient)
 //!
 //! ```no_run
 //! use std::io::BufReader;
@@ -913,6 +926,51 @@ pub mod FastX
             func(&record);
         }
         Ok(())
+    }
+
+    /// Iterate over sequence records with automatic format detection and buffer reuse.
+    ///
+    /// This function peeks at the first byte to determine if the file is FASTA or FASTQ,
+    /// then calls the appropriate `for_each` function.
+    ///
+    /// # Arguments
+    ///
+    /// * `reader` - A buffered reader containing FASTA or FASTQ data
+    /// * `fasta_func` - A closure that takes a reference to a [`FastARecord`]
+    /// * `fastq_func` - A closure that takes a reference to a [`FastQRecord`]
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use fastx::FastX::{fastx_for_each, FastXRead};
+    /// use std::io::BufReader;
+    /// use std::fs::File;
+    ///
+    /// let mut reader = BufReader::new(File::open("sequences.fasta").unwrap());
+    /// fastx_for_each(reader,
+    ///     |record| println!("FASTA: {}", record.id()),
+    ///     |record| println!("FASTQ: {}", record.id()),
+    /// ).unwrap();
+    /// ```
+    pub fn fastx_for_each<R: BufRead, FA, FQ>(
+        mut reader: R,
+        fasta_func: FA,
+        fastq_func: FQ,
+    ) -> io::Result<()>
+    where
+        FA: FnMut(&FastARecord),
+        FQ: FnMut(&FastQRecord),
+    {
+        let (format, _) = peek(&mut reader)?;
+        match format
+        {
+            FastXFormat::FASTA => fasta_for_each(reader, fasta_func),
+            FastXFormat::FASTQ => fastq_for_each(reader, fastq_func),
+            FastXFormat::EOF | FastXFormat::UNKNOWN => Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "Unknown sequence format",
+            )),
+        }
     }
 
     /// from std::io::read_until, adapted to not consume the delimiter

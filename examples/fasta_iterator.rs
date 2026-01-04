@@ -7,15 +7,21 @@ fn main() -> io::Result<()>
 {
     for filename in args().skip(1)
     {
-        println!("{}", filename);
-        let fastx_reader = FastX::reader_from_path(Path::new(&filename))?;
+        println!("Processing: {}", filename);
+        
+        // 1. High-performance approach (reuses buffer)
+        let reader = FastX::reader_from_path(Path::new(&filename))?;
+        println!("--- Using fasta_for_each (fastest) ---");
+        FastX::fasta_for_each(reader, |record| {
+            println!("{}\t{}", record.id(), record.seq_len());
+        })?;
 
-        // Using the new iterator approach
-        for result in FastX::fasta_iter(fastx_reader) {
-            match result {
-                Ok(record) => println!("{}\t{}", record.id(), record.seq_len()),
-                Err(e) => eprintln!("Error reading record: {}", e),
-            }
+        // 2. Iterator-based approach (convenient)
+        let reader = FastX::reader_from_path(Path::new(&filename))?;
+        println!("--- Using fasta_iter (convenient) ---");
+        for result in FastX::fasta_iter(reader) {
+            let record = result?;
+            println!("{}\t{}", record.id(), record.seq_len());
         }
     }
     Ok(())
