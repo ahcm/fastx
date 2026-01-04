@@ -845,6 +845,76 @@ pub mod FastX
         FastXIterator::new(reader)
     }
 
+    /// Iterate over FASTA records with buffer reuse for high performance.
+    ///
+    /// This function calls the provided closure for each record, reusing the same
+    /// buffer memory to avoid allocations. This is significantly faster than
+    /// [`fasta_iter`] but does not allow the records to outlive the closure.
+    ///
+    /// # Arguments
+    ///
+    /// * `reader` - A buffered reader containing FASTA data
+    /// * `func` - A closure that takes a reference to a [`FastARecord`]
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use fastx::FastX::{fasta_for_each, FastXRead};
+    /// use std::io::BufReader;
+    /// use std::fs::File;
+    ///
+    /// let reader = BufReader::new(File::open("sequences.fasta").unwrap());
+    /// fasta_for_each(reader, |record| {
+    ///     println!("{}: {} bp", record.id(), record.seq_len());
+    /// }).unwrap();
+    /// ```
+    pub fn fasta_for_each<R: BufRead, F>(mut reader: R, mut func: F) -> io::Result<()>
+    where
+        F: FnMut(&FastARecord),
+    {
+        let mut record = FastARecord::default();
+        while record.read(&mut reader)? > 0
+        {
+            func(&record);
+        }
+        Ok(())
+    }
+
+    /// Iterate over FASTQ records with buffer reuse for high performance.
+    ///
+    /// This function calls the provided closure for each record, reusing the same
+    /// buffer memory to avoid allocations. This is significantly faster than
+    /// [`fastq_iter`] but does not allow the records to outlive the closure.
+    ///
+    /// # Arguments
+    ///
+    /// * `reader` - A buffered reader containing FASTQ data
+    /// * `func` - A closure that takes a reference to a [`FastQRecord`]
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use fastx::FastX::{fastq_for_each, FastXRead};
+    /// use std::io::BufReader;
+    /// use std::fs::File;
+    ///
+    /// let reader = BufReader::new(File::open("sequences.fastq").unwrap());
+    /// fastq_for_each(reader, |record| {
+    ///     println!("{}: {} bp", record.id(), record.seq_len());
+    /// }).unwrap();
+    /// ```
+    pub fn fastq_for_each<R: BufRead, F>(mut reader: R, mut func: F) -> io::Result<()>
+    where
+        F: FnMut(&FastQRecord),
+    {
+        let mut record = FastQRecord::default();
+        while record.read(&mut reader)? > 0
+        {
+            func(&record);
+        }
+        Ok(())
+    }
+
     /// from std::io::read_until, adapted to not consume the delimiter
     fn read_until_before<R: BufRead + ?Sized>(
         r: &mut R,
