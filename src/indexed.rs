@@ -302,6 +302,21 @@ impl<R: Read + Seek> IndexedFastXReader<R>
 
         while remaining > 0
         {
+            // If we are at the end of a line's bases, skip the padding (newlines)
+            if col >= entry.line_bases
+            {
+                let padding = entry.line_width - entry.line_bases;
+                if padding > 0
+                {
+                    // Skip padding bytes (newlines)
+                    // We need to read and discard them because we can't easily seek relative
+                    // in the compressed stream without resetting the decompressor state
+                    let mut trash = vec![0u8; padding as usize];
+                    self.reader.read_exact(&mut trash)?;
+                }
+                col = 0;
+            }
+
             // Calculate how much we can read from the current line
             let in_line = std::cmp::min(remaining, entry.line_bases - col);
 
@@ -318,42 +333,6 @@ impl<R: Read + Seek> IndexedFastXReader<R>
             seq_data.extend_from_slice(&buf[..n]);
             remaining -= n as u64;
             col += n as u64; // Advance column by actual bytes read
-
-            // Skip the newline if we reached the end of a line
-            // Note: Some files may not have newlines (continuous sequence),
-            // so we check if the next byte is actually a newline before skipping
-            if col >= entry.line_bases && remaining > 0
-            {
-                // Peek at the next byte to see if it's a newline
-                let mut peek_byte = [0u8; 1];
-                let n = self.reader.read(&mut peek_byte)?;
-                if n == 0
-                {
-                    return Err(io::Error::new(
-                        io::ErrorKind::UnexpectedEof,
-                        "Unexpected end of file while reading sequence",
-                    ));
-                }
-                if peek_byte[0] == b'\n'
-                {
-                    // It's a newline, we've consumed it
-                    col = 0;
-                }
-                else
-                {
-                    // Not a newline - this means the sequence is continuous
-                    // Put the byte back by adding it to our sequence data
-                    seq_data.push(peek_byte[0]);
-                    remaining -= 1;
-                    // Advance col (accounting for the extra base we just read)
-                    col += 1;
-                    // If we've gone past the line width, reset to 0 (wrap around)
-                    if col >= entry.line_width
-                    {
-                        col = 0;
-                    }
-                }
-            }
         }
 
         Ok(seq_data)
