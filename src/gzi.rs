@@ -31,7 +31,7 @@ use std::path::Path;
 pub struct GziIndex
 {
     /// Sorted entries: (compressed_offset, uncompressed_offset)
-    pub(crate) entries: Vec<(u64, u64)>,
+    pub entries: Vec<(u64, u64)>,
 }
 
 impl GziIndex

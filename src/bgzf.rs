@@ -174,6 +174,12 @@ impl<R: Read + Seek> BgzfReader<R>
         }
     }
 
+    /// Get a reference to the GZI index, if available.
+    pub fn gzi_index(&self) -> Option<&GziIndex>
+    {
+        self.gzi_index.as_ref()
+    }
+
     /// Read the next BGZF block.
     ///
     /// Returns true if a block was read, false on EOF.

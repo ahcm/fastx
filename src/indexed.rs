@@ -56,6 +56,20 @@ pub struct IndexedFastXReader<R: Read + Seek>
     fai_index: FaiIndex,
 }
 
+impl<R: Read + Seek> IndexedFastXReader<R>
+{
+    /// Create a new indexed reader from a BGZF reader and a FASTA index.
+    ///
+    /// # Arguments
+    ///
+    /// * `reader` - A BGZF reader (which may or may not have its own GZI index)
+    /// * `fai_index` - A parsed FASTA index
+    pub fn new(reader: BgzfReader<R>, fai_index: FaiIndex) -> Self
+    {
+        Self { reader, fai_index }
+    }
+}
+
 /// Type alias for local file reading
 pub type LocalIndexedFastXReader = IndexedFastXReader<File>;
 
@@ -382,6 +396,12 @@ impl<R: Read + Seek> IndexedFastXReader<R>
     pub fn index(&self) -> &FaiIndex
     {
         &self.fai_index
+    }
+
+    /// Get a reference to the GZI index, if available.
+    pub fn gzi_index(&self) -> Option<&GziIndex>
+    {
+        self.reader.gzi_index()
     }
 
     /// Check if a sequence exists in the index.
