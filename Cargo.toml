@@ -27,3 +27,12 @@ url = ["dep:ureq"]
 memchr = "^2.7"
 flate2 = { version = "^1.1", default-features = false }
 ureq = { version = "^3", optional = true, default-features = false, features = ["socks-proxy", "rustls"] }
+
+[dev-dependencies]
+needletail = { version = "0.5", default-features = false }
+criterion = "0.5"
+rand = "0.8"
+
+[[bench]]
+name = "bench_comparison"
+harness = false
