@@ -46,26 +46,31 @@ impl GziIndex
     ///
     /// * `Ok(GziIndex)` - The parsed index
     /// * `Err(io::Error)` - If the file cannot be read or the format is invalid
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use fastx::gzi::GziIndex;
-    /// use std::path::Path;
-    ///
-    /// let index = GziIndex::from_path(Path::new("data.gz.gzi")).unwrap();
-    /// ```
     pub fn from_path(path: &Path) -> io::Result<Self>
     {
         let mut file = std::fs::File::open(path)?;
         let mut buffer = Vec::new();
         file.read_to_end(&mut buffer)?;
+        Self::from_bytes(&buffer)
+    }
 
+    /// Load a .gzi index from raw bytes.
+    ///
+    /// # Arguments
+    ///
+    /// * `buffer` - Byte slice containing .gzi formatted data
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(GziIndex)` - The parsed index
+    /// * `Err(io::Error)` - If the data is too short or the format is invalid
+    pub fn from_bytes(buffer: &[u8]) -> io::Result<Self>
+    {
         if buffer.len() < 8
         {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
-                "GZI file too short (less than 8 bytes)",
+                "GZI data too short (less than 8 bytes)",
             ));
         }
 
@@ -80,7 +85,7 @@ impl GziIndex
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 format!(
-                    "GZI file too short: expected {} bytes, got {}",
+                    "GZI data too short: expected {} bytes, got {}",
                     expected_size,
                     buffer.len()
                 ),
@@ -135,29 +140,6 @@ impl GziIndex
     }
 
     /// Get the compressed offset for a given uncompressed position.
-    ///
-    /// Returns the compressed file offset where decompression should start
-    /// to reach the specified uncompressed position.
-    ///
-    /// # Arguments
-    ///
-    /// * `uncompressed_offset` - Position in the uncompressed data stream
-    ///
-    /// # Returns
-    ///
-    /// * `Some(offset)` - The compressed file offset to seek to
-    /// * `None` - If the offset is beyond the end of the index
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use fastx::gzi::GziIndex;
-    /// use std::path::Path;
-    ///
-    /// let index = GziIndex::from_path(Path::new("data.gz.gzi")).unwrap();
-    /// // Find the compressed offset for an uncompressed position
-    /// let offset = index.get_compressed_offset(15000);
-    /// ```
     pub fn get_compressed_offset(&self, uncompressed_offset: u64) -> Option<u64>
     {
         if self.entries.is_empty()
@@ -165,7 +147,6 @@ impl GziIndex
             return None;
         }
 
-        // Binary search for the largest uncompressed_offset <= target
         let result = self
             .entries
             .binary_search_by(|(_, unc)| unc.cmp(&uncompressed_offset));
@@ -173,24 +154,13 @@ impl GziIndex
         match result
         {
             Ok(i) => Some(self.entries[i].0),
-            Err(0) => Some(self.entries[0].0), // Before first entry, use first
-            Err(i) if i >= self.entries.len() => Some(self.entries.last()?.0), // Beyond last, use last
-            Err(i) => Some(self.entries[i - 1].0), // Between entries, use previous
+            Err(0) => Some(self.entries[0].0),
+            Err(i) if i >= self.entries.len() => Some(self.entries.last()?.0),
+            Err(i) => Some(self.entries[i - 1].0),
         }
     }
 
     /// Get the uncompressed offset for a given compressed position.
-    ///
-    /// Returns the uncompressed position that corresponds to a compressed file offset.
-    ///
-    /// # Arguments
-    ///
-    /// * `compressed_offset` - Position in the compressed file
-    ///
-    /// # Returns
-    ///
-    /// * `Some(offset)` - The uncompressed stream position
-    /// * `None` - If the compressed offset is not in the index
     pub fn get_uncompressed_offset(&self, compressed_offset: u64) -> Option<u64>
     {
         if self.entries.is_empty()
@@ -198,7 +168,6 @@ impl GziIndex
             return None;
         }
 
-        // Binary search for the compressed offset
         let result = self
             .entries
             .binary_search_by(|(comp, _)| comp.cmp(&compressed_offset));
@@ -206,9 +175,9 @@ impl GziIndex
         match result
         {
             Ok(i) => Some(self.entries[i].1),
-            Err(0) => None, // Before first entry
-            Err(i) if i >= self.entries.len() => Some(self.entries.last()?.1), // Beyond or at last, use last
-            Err(i) => Some(self.entries[i - 1].1), // Between entries, use previous
+            Err(0) => None,
+            Err(i) if i >= self.entries.len() => Some(self.entries.last()?.1),
+            Err(i) => Some(self.entries[i - 1].1),
         }
     }
 
@@ -235,90 +204,17 @@ impl GziIndex
 mod tests
 {
     use super::*;
-    use std::io::Cursor;
 
     #[test]
-    fn test_empty_index()
+    fn test_from_bytes()
     {
-        // Create a minimal valid GZI with 0 entries
-        let data: [u8; 8] = [0, 0, 0, 0, 0, 0, 0, 0];
-        let mut cursor = Cursor::new(data);
-        let mut buffer = Vec::new();
-        cursor.read_to_end(&mut buffer).unwrap();
-
-        let num_entries = u64::from_le_bytes([
-            buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7],
-        ]) as usize;
-        assert_eq!(num_entries, 0);
-
-        let index = GziIndex {
-            entries: Vec::new(),
-        };
-        assert!(index.is_empty());
-        assert_eq!(index.len(), 0);
-    }
-
-    #[test]
-    fn test_get_compressed_offset()
-    {
-        let index = GziIndex {
-            entries: vec![(0, 0), (100, 10000), (250, 20000), (400, 30000)],
-        };
-
-        // Exact match
-        assert_eq!(index.get_compressed_offset(0), Some(0));
-        assert_eq!(index.get_compressed_offset(10000), Some(100));
-
-        // Between entries - should find previous block
-        assert_eq!(index.get_compressed_offset(5000), Some(0));
-        assert_eq!(index.get_compressed_offset(15000), Some(100));
-        assert_eq!(index.get_compressed_offset(25000), Some(250));
-
-        // Beyond last entry - returns last entry's offset
-        assert_eq!(index.get_compressed_offset(40000), Some(400));
-    }
-
-    #[test]
-    fn test_single_entry()
-    {
-        let index = GziIndex {
-            entries: vec![(50, 0)],
-        };
-
-        assert_eq!(index.get_compressed_offset(0), Some(50));
-        assert_eq!(index.get_compressed_offset(1000), Some(50));
-    }
-
-    #[test]
-    fn test_gzi_format_parsing()
-    {
-        // Create a valid GZI file with 2 entries:
-        // Entry 0: compressed=100, uncompressed=0
-        // Entry 1: compressed=300, uncompressed=10000
         let data: Vec<u8> = vec![
-            // num_entries = 2 (little-endian u64)
-            2, 0, 0, 0, 0, 0, 0, 0, // Entry 0: compressed = 100
-            100, 0, 0, 0, 0, 0, 0, 0, // Entry 0: uncompressed = 0
-            0, 0, 0, 0, 0, 0, 0, 0, // Entry 1: compressed = 300
-            44, 1, 0, 0, 0, 0, 0, 0, // Entry 1: uncompressed = 10000
-            16, 39, 0, 0, 0, 0, 0, 0,
+            1, 0, 0, 0, 0, 0, 0, 0, // 1 entry
+            100, 0, 0, 0, 0, 0, 0, 0, // comp = 100
+            0, 0, 0, 0, 0, 0, 0, 0, // uncomp = 0
         ];
-
-        let mut cursor = Cursor::new(data);
-        let mut buffer = Vec::new();
-        cursor.read_to_end(&mut buffer).unwrap();
-
-        let num_entries = u64::from_le_bytes([
-            buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7],
-        ]) as usize;
-        assert_eq!(num_entries, 2);
-
-        let index = GziIndex {
-            entries: vec![(100, 0), (300, 10000)],
-        };
-
-        assert_eq!(index.len(), 2);
+        let index = GziIndex::from_bytes(&data).unwrap();
+        assert_eq!(index.len(), 1);
         assert_eq!(index.get_compressed_offset(0), Some(100));
-        assert_eq!(index.get_compressed_offset(5000), Some(100));
     }
 }

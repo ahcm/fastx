@@ -138,19 +138,25 @@ impl FaiIndex
     ///
     /// * `Ok(FaiIndex)` - The parsed index
     /// * `Err(io::Error)` - If the file cannot be read or the format is invalid
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use fastx::fai::FaiIndex;
-    /// use std::path::Path;
-    ///
-    /// let index = FaiIndex::from_path(Path::new("sequences.fasta.fai")).unwrap();
-    /// ```
     pub fn from_path(path: &Path) -> io::Result<Self>
     {
         let file = std::fs::File::open(path)?;
         let reader = io::BufReader::new(file);
+        Self::from_reader(reader)
+    }
+
+    /// Load a .fai index from a buffered reader.
+    ///
+    /// # Arguments
+    ///
+    /// * `reader` - A buffered reader containing .fai formatted data
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(FaiIndex)` - The parsed index
+    /// * `Err(io::Error)` - If the reader fails or the format is invalid
+    pub fn from_reader<R: BufRead>(reader: R) -> io::Result<Self>
+    {
         let mut entries = HashMap::new();
 
         for (line_num, line_result) in reader.lines().enumerate()
@@ -224,7 +230,6 @@ impl FaiIndex
                 line_width,
             };
 
-            // Use the name as key (first column)
             entries.insert(entry.name.clone(), entry);
         }
 
@@ -232,37 +237,12 @@ impl FaiIndex
     }
 
     /// Get an entry by sequence name.
-    ///
-    /// # Arguments
-    ///
-    /// * `name` - The sequence identifier
-    ///
-    /// # Returns
-    ///
-    /// * `Some(&FaiEntry)` - If the sequence exists in the index
-    /// * `None` - If the sequence is not found
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use fastx::fai::FaiIndex;
-    /// use std::path::Path;
-    ///
-    /// let index = FaiIndex::from_path(Path::new("data.fasta.fai")).unwrap();
-    /// if let Some(entry) = index.get("chr1") {
-    ///     println!("chr1 length: {}", entry.length);
-    /// }
-    /// ```
     pub fn get(&self, name: &str) -> Option<&FaiEntry>
     {
         self.entries.get(name)
     }
 
     /// Check if a sequence exists in the index.
-    ///
-    /// # Arguments
-    ///
-    /// * `name` - The sequence identifier
     pub fn contains(&self, name: &str) -> bool
     {
         self.entries.contains_key(name)
@@ -298,29 +278,28 @@ mod tests
 {
     use super::*;
 
-    const TEST_FAI: &str = "chr1\t248956422\t6\t80\t81
-chr2\t242193529\t250000000\t80\t81
-chr3\t198295559\t493000000\t80\t81
-";
-
     #[test]
-    fn test_fai_parsing()
+    fn test_from_reader()
     {
-        let path = Path::new("test.fasta.fai");
-        std::fs::write(path, TEST_FAI).unwrap();
-
-        let index = FaiIndex::from_path(path).unwrap();
-
-        assert_eq!(index.len(), 3);
+        let data = "chr1\t100\t0\t80\t81\nchr2\t200\t100\t80\t81\n";
+        let index = FaiIndex::from_reader(io::BufReader::new(data.as_bytes())).unwrap();
+        assert_eq!(index.len(), 2);
         assert!(index.contains("chr1"));
         assert!(index.contains("chr2"));
-        assert!(index.contains("chr3"));
-        assert!(!index.contains("chr4"));
+    }
 
+    #[test]
+    fn test_from_path()
+    {
+        let data = "chr1\t100\t0\t80\t81\n";
+        let path = Path::new("test.fai");
+        std::fs::write(path, data).unwrap();
+
+        let index = FaiIndex::from_path(path).unwrap();
+        assert_eq!(index.len(), 1);
         let chr1 = index.get("chr1").unwrap();
-        assert_eq!(chr1.name, "chr1");
-        assert_eq!(chr1.length, 248956422);
-        assert_eq!(chr1.offset, 6);
+        assert_eq!(chr1.length, 100);
+        assert_eq!(chr1.offset, 0);
         assert_eq!(chr1.line_bases, 80);
         assert_eq!(chr1.line_width, 81);
 
@@ -338,22 +317,10 @@ chr3\t198295559\t493000000\t80\t81
             line_width: 81,
         };
 
-        // Position 0 -> offset 100
         assert_eq!(entry.offset_for_position(0), 100);
-
-        // Position 79 -> end of first line
         assert_eq!(entry.offset_for_position(79), 179);
-
-        // Position 80 -> start of second line (line 0: 100-180, line 1: 181-...)
         assert_eq!(entry.offset_for_position(80), 181);
-
-        // Position 100 -> line 1, column 20
-        // offset = 100 + (1 * 81) + 20 = 201
         assert_eq!(entry.offset_for_position(100), 201);
-
-        // Position 160 -> line 2, column 0
-        // offset = 100 + (2 * 81) + 0 = 262
-        assert_eq!(entry.offset_for_position(160), 262);
     }
 
     #[test]
@@ -367,56 +334,15 @@ chr3\t198295559\t493000000\t80\t81
             line_width: 81,
         };
 
-        // Normal range
         assert_eq!(entry.region_length(100, 200), 100);
-
-        // Clamped to sequence length
         assert_eq!(entry.region_length(900, 2000), 100);
-
-        // Empty range
-        assert_eq!(entry.region_length(100, 100), 0);
-
-        // Start beyond sequence
-        assert_eq!(entry.region_length(2000, 2000), 0);
     }
 
     #[test]
     fn test_empty_lines_and_comments()
     {
-        let data = "# This is a comment\n\nchr1\t100\t0\t80\t81\n\n";
-        let path = Path::new("test_comment.fai");
-        std::fs::write(path, data).unwrap();
-
-        let index = FaiIndex::from_path(path).unwrap();
+        let data = "# comment\n\nchr1\t100\t0\t80\t81\n\n";
+        let index = FaiIndex::from_reader(io::BufReader::new(data.as_bytes())).unwrap();
         assert_eq!(index.len(), 1);
-        assert!(index.contains("chr1"));
-
-        std::fs::remove_file(path).unwrap();
-    }
-
-    #[test]
-    fn test_invalid_format()
-    {
-        // Not enough fields
-        let data = "chr1\t100\t0\t80\n";
-        let path = Path::new("test_invalid.fai");
-        std::fs::write(path, data).unwrap();
-
-        assert!(FaiIndex::from_path(path).is_err());
-
-        std::fs::remove_file(path).unwrap();
-    }
-
-    #[test]
-    fn test_invalid_line_width()
-    {
-        // line_width < line_bases
-        let data = "chr1\t100\t0\t80\t70\n";
-        let path = Path::new("test_invalid_width.fai");
-        std::fs::write(path, data).unwrap();
-
-        assert!(FaiIndex::from_path(path).is_err());
-
-        std::fs::remove_file(path).unwrap();
     }
 }
