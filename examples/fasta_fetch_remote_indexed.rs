@@ -3,7 +3,7 @@
 // This example demonstrates fetching chromosome 8 from the Bos taurus (cattle)
 // genome hosted on Ensembl's FTP server using indexed random access.
 //
-// Run with: cargo run --example remote_chromosome --features url
+// Run with: cargo run --example fasta_fetch_remote_indexed --features url
 
 use std::error::Error;
 
