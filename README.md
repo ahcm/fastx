@@ -1,8 +1,10 @@
 # FastX
 
 FastX implements low overhead readers for Fasta and FastQ.
-Version 0.3.0 added .gz support.
-Version 0.5.0 added iterator support.
+ - Version 0.3.0 added .gz support.
+ - Version 0.5.0 added iterator support.
+ - Version 0.5.2 added compressed fasta (fasta.gz).
+ - Version 0.6.0 added support for URLs and indexed (.fai and .gzi) fasta files.
 
 ```
 let mut fastx_reader = FastX::reader_from_path(Path::new(&filename))?;
