@@ -503,8 +503,8 @@ pub mod FastX
         {
             match memchr::memchr(b' ', self.name.as_bytes())
             {
-                None => &self.name[1..],
-                Some(i) => &self.name[1..i],
+                None => &self.name,
+                Some(i) => &self.name[..i],
             }
         }
 
@@ -550,14 +550,23 @@ pub mod FastX
                 Ok(0) => return Ok(0),
                 Ok(some) => size = some,
             }
-            rstrip_newline_string(&mut self.name); //self.name.truncate(size - 1); // truncate newline XXX non UNIX
-            assert!(self.name.remove(0) == '@');
+            rstrip_newline_string(&mut self.name);
+
+            if self.name.is_empty() {
+                 return Err(io::Error::new(io::ErrorKind::InvalidData, "FASTQ record with empty header"));
+            }
+
+            if self.name.starts_with('@') {
+                self.name.remove(0);
+            } else {
+                 return Err(io::Error::new(io::ErrorKind::InvalidData, "FASTQ header must start with @"));
+            }
 
             self.seq.clear();
             match reader.read_until(b'\n', &mut self.seq)
             {
                 Err(e) => return Err(e),
-                Ok(0) => return Ok(0),
+                Ok(0) => return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "FASTQ truncated sequence")),
                 Ok(some) =>
                 {
                     rstrip_newline_vec(&mut self.seq);
@@ -569,10 +578,13 @@ pub mod FastX
             match reader.read_line(&mut self.comment)
             {
                 Err(e) => return Err(e),
-                Ok(0) => return Ok(0),
+                Ok(0) => return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "FASTQ truncated comment")),
                 Ok(some) =>
                 {
-                    rstrip_newline_string(&mut self.comment); //self.name.truncate(size - 1); // truncate newline XXX non UNIX
+                    rstrip_newline_string(&mut self.comment);
+                    if !self.comment.starts_with('+') {
+                        return Err(io::Error::new(io::ErrorKind::InvalidData, "FASTQ comment must start with +"));
+                    }
                     size += some
                 }
             }
@@ -581,7 +593,7 @@ pub mod FastX
             match reader.read_until(b'\n', &mut self.qual)
             {
                 Err(e) => Err(e),
-                Ok(0) => Ok(0),
+                Ok(0) => Err(io::Error::new(io::ErrorKind::UnexpectedEof, "FASTQ truncated quality")),
                 Ok(some) =>
                 {
                     rstrip_newline_vec(&mut self.qual);
@@ -595,7 +607,11 @@ pub mod FastX
     {
         fn comment(&self) -> &str
         {
-            &self.comment[1..]
+            if self.comment.len() > 0 {
+                &self.comment[1..]
+            } else {
+                ""
+            }
         }
 
         fn qual(&self) -> &Vec<u8>
@@ -606,26 +622,25 @@ pub mod FastX
 
     fn rstrip_newline_string(s: &mut String)
     {
-        while s.ends_with(&"\n")
+        while s.ends_with('\n') || s.ends_with('\r')
         {
-            s.truncate(s.len() - 1);
+            s.pop();
         }
     }
 
     fn rstrip_seq(s: &mut Vec<u8>)
     {
-        while s[s.len() - 1] == b'>' || s[s.len() - 1] == b'\n'
-        //.ends_with(&[b'>',b'\n'])
+        while s.last() == Some(&b'>') || s.last() == Some(&b'\n') || s.last() == Some(&b'\r')
         {
-            s.truncate(s.len() - 1);
+            s.pop();
         }
     }
 
     fn rstrip_newline_vec(s: &mut Vec<u8>)
     {
-        while s[s.len() - 1] == b'\n'
+        while s.last() == Some(&b'\n') || s.last() == Some(&b'\r')
         {
-            s.truncate(s.len() - 1);
+            s.pop();
         }
     }
 
