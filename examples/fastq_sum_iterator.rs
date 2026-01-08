@@ -9,12 +9,11 @@ fn main() -> io::Result<()>
     for filename in args().skip(1)
     {
         println!("{}", filename);
-        let mut fastx_reader = FastX::reader_from_path(Path::new(&filename))?;
-        let mut fastx_record = FastX::FastARecord::default();
+        let fastx_reader = FastX::reader_from_path(Path::new(&filename))?;
         let mut len = 0;
-        while let Ok(_some @ 1..=usize::MAX) = fastx_record.read(&mut fastx_reader)
+        for fastx_record in FastX::fastq_iter(fastx_reader)
         {
-            len += fastx_record.seq_len();
+            len += fastx_record?.seq_len();
         }
         println!("Total sequence length: {}", len)
     }
